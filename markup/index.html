@@ -1,0 +1,383 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Spotify Playlist Generator</title>
+    <link rel="stylesheet" href="styles.css">
+    <style type="text/css">
+      #login, #loggedin {
+        display: none;
+      }
+      .text-overflow {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        width: 500px;
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body style = "background-color: #000000;">
+    <div class="container">
+      <div id="login" style = "text-align:center">
+        <header>Spotify Playlist Generator</header>
+        <button><a href="/login">Log in with Spotify</a></button>
+      </div>
+      <div id="loggedin">
+        <div id="user-profile">
+        </div>
+        <div id="oauth">
+        </div>
+      <div style = "text-align:center">
+        <button id="startButton">Create New Playlist</button>
+      </div>
+
+
+
+        <div id="myModal" class="modal">
+          <!-- Modal content -->
+          <div class="modal-content">
+            <span class="close">&times;</span>
+            <p>Enter your playlist preferences:</p>
+
+              <form>
+                <select id = "Genre">
+                  <option value="blues">Blues</option>
+                  <option value="classical">Classical</option>
+                  <option value="country">Country</option>
+                  <option value="edm">EDM</option>
+                  <option value="folk">Folk</option>
+                  <option value="hip-hop">Hip-Hop/Rap</option>
+                  <option value="jazz">Jazz</option>
+                  <option value="pop"> Pop </option>
+                  <option value="rock"> Rock </option>
+                </select>
+
+              </form>
+
+              <form>
+                <label for = "numTracks" class = "box-label">Number of tracks (1-20):</label>
+                <input id = "Limit" input type = "number" name = "numTracks">
+              </form>
+            <button class ="btn btn-default" id="Create">Create</button>
+            <button class = "button button-default" id="Createit">Try using your recommendations?</button>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <script id="user-profile-template" type="text/x-handlebars-template">
+    <img class="logo" width="150" src="spotifylogo.jpeg"/>
+    <header>Spotify Playlist Generator</header>
+    <dt>By JJSPN</dt>
+    <header class = 'header2'>Welcome, {{display_name}}</header>
+
+        <div class="media-body">
+          <dl class="dl-horizontal">
+            <dt>Display name: {{display_name}}</dt>
+            <dt>ID: {{id}}</dt>
+            <dt>Email:<a href="{{email}}"> {{email}}</a></dt>
+            <dt>Link to profile: <a href="{{external_urls.spotify}}">{{external_urls.spotify}}</a></dt>
+          </dl>
+        </div>
+      </div>
+    </script>
+
+    <script id="oauth-template" type="text/x-handlebars-template">
+    </script>
+
+    <script src="//cdnjs.cloudflare.com/ajax/libs/handlebars.js/2.0.0-alpha.1/handlebars.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script>
+      (function() {
+
+
+        /**
+         * Obtains parameters from the hash of the URL
+         // netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css
+
+         * @return Object
+         */
+        function getHashParams() {
+          var hashParams = {};
+          var e, r = /([^&;=]+)=?([^&;]*)/g,
+              q = window.location.hash.substring(1);
+          while ( e = r.exec(q)) {
+             hashParams[e[1]] = decodeURIComponent(e[2]);
+          }
+          return hashParams;
+        }
+
+        var modal = document.getElementById("myModal");
+
+        // Get the button that opens the modal
+        var btn = document.getElementById("startButton");
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks the button, open the modal
+        btn.onclick = function() {
+          modal.style.display = "block";
+        }
+
+        // When the user clicks on <span> (x), close the modal
+        span.onclick = function() {
+          modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+          if (event.target == modal) {
+            modal.style.display = "none";
+          }
+        }
+
+        var userProfileSource = document.getElementById('user-profile-template').innerHTML,
+            userProfileTemplate = Handlebars.compile(userProfileSource),
+            userProfilePlaceholder = document.getElementById('user-profile');
+
+        var oauthSource = document.getElementById('oauth-template').innerHTML,
+            oauthTemplate = Handlebars.compile(oauthSource),
+            oauthPlaceholder = document.getElementById('oauth');
+
+        var params = getHashParams();
+
+        var access_token = params.access_token,
+            refresh_token = params.refresh_token,
+            error = params.error;
+
+        if (error) {
+          alert('There was an error during the authentication');
+        } else {
+          if (access_token) {
+            // render oauth info
+            oauthPlaceholder.innerHTML = oauthTemplate({
+              access_token: access_token,
+              refresh_token: refresh_token
+            });
+
+            $.ajax({
+                url: 'https://api.spotify.com/v1/me',
+                headers: {
+                  'Authorization': 'Bearer ' + access_token
+                },
+                success: function(response) {
+                  userProfilePlaceholder.innerHTML = userProfileTemplate(response);
+
+                  $('#login').hide();
+                  $('#loggedin').show();
+                }
+            });
+          } else {
+              // render initial screen
+              $('#login').show();
+              $('#loggedin').hide();
+          }
+
+          var tracks = "spotify:track:3D2Hrxbf9IomLqyUbci1x3"
+          var artists = "spotify:artist:5mU4H1cbfHpKYuyhNnA3PC"
+          var numTracks = 20
+
+          document.getElementById('Create').addEventListener('click', function() {
+            var input = document.getElementById("Genre").value;
+            numTracks = document.getElementById("Limit").value;
+            $.ajax({
+              url: 'https://api.spotify.com/v1/me',
+              method: "GET",
+              headers: {
+                'Authorization': 'Bearer ' + access_token,
+                'Content-Type': 'application/json'
+              },
+              success: function(response) {
+                console.log(response);
+                var userLink = response.uri;
+                userName = userLink.split("spotify:user:").pop();
+                $.ajax({
+                  url: "https://api.spotify.com/v1/users/" + userName + "/playlists",
+                  method: "POST",
+                  data: JSON.stringify({name: input, public: true}),
+                  headers: {
+                    'Authorization': 'Bearer ' + access_token,
+                    'Content-Type': 'application/json'
+                  },
+                  success: function(response) {
+                    console.log(response);
+                    var plistID = response.uri;
+                    newID = plistID.split("spotify:playlist:").pop();
+                    $.ajax({
+                      url: 'https://api.spotify.com/v1/recommendations',
+                      async: false,
+                      headers: {
+                          'Authorization': 'Bearer ' + access_token
+                      },
+                      data: {
+                          seed_genres: input
+                      },
+                      success: function(response) {
+                        console.log(response);
+                        var tids = [response.tracks[0].uri]
+                        for (let i = 1; i < numTracks; i++) {
+                          tids.push(response.tracks[i].uri);
+                        }
+                        $.ajax({
+                          url: "https://api.spotify.com/v1/playlists/" + newID + "/tracks",
+                          type: "POST",
+                          data: JSON.stringify({"uris":tids}),
+                          headers: {
+                            'Authorization': 'Bearer ' + access_token,
+                            'Content-Type': 'application/json'
+                          },
+                          success: function(response) {
+                            console.log(response);
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+              }
+            });
+          }, false);
+
+          var tracks = "spotify:track:3D2Hrxbf9IomLqyUbci1x3"
+
+
+          document.getElementById('Createit').addEventListener('click', function() {
+            var topTracksArr = [];
+            var topTracksLength = 0;
+            var start = 0;
+            numTracks = document.getElementById("Limit").value;
+            $.ajax({
+              url: 'https://api.spotify.com/v1/me',
+              method: "GET",
+              headers: {
+                'Authorization': 'Bearer ' + access_token,
+                'Content-Type': 'application/json'
+              },
+              success: function(response) {
+                console.log(response);
+                var userLink = response.uri;
+                var userName = userLink.split("spotify:user:").pop();
+                $.ajax({
+                  url: "https://api.spotify.com/v1/users/" + userName + "/playlists",
+                  method: "POST",
+                  data: JSON.stringify({name: "Top Songs", public: true}),
+                  headers: {
+                    'Authorization': 'Bearer ' + access_token,
+                    'Content-Type': 'application/json'
+                  },
+                  success: function(response) {
+                    console.log(response);
+                    var plistID = response.uri;
+                    var newID = plistID.split("spotify:playlist:").pop();
+                    $.ajax({
+                      url: 'https://api.spotify.com/v1/me/top/artists',
+                      type: "GET",
+                      headers: {
+                        'Authorization': 'Bearer ' + access_token,
+                      },
+                      success: function(response) {
+                        console.log(response);
+                        var end = response.items.length;
+                        var topArtists = [response.items[0].uri.split("spotify:artist:").pop()];
+                        for (let j = 1; j < end; j++) {
+                          choppedArtist = response.items[j].uri.split("spotify:artist:").pop()
+                          topArtists.push(choppedArtist)
+                        }
+                        var recArtists = [topArtists[0]];
+                        for (let x = 1; x < 5; x++) {
+                          choppedArtist = topArtists[x]
+                          topArtists.push(choppedArtist)
+                        }
+                          for(let k = 0; k < end; k++) {
+                            $.ajax({
+                              url: 'https://api.spotify.com/v1/artists/' + topArtists[k] + '/top-tracks',
+                              method: "GET",
+                              data: {market: "US"},
+                              headers: {
+                                'Authorization': 'Bearer ' + access_token,
+                              },
+                              success: function(response) {
+                                console.log(response);
+                                var topTracks = [response.tracks[0].uri]
+                                for (let i = 1; i < response.tracks.length; i++) {
+                                  topTracks.push(response.tracks[i].uri);
+                                }
+
+
+                                $.ajax({
+                                  url: "https://api.spotify.com/v1/playlists/" + newID + "/tracks",
+                                  type: "POST",
+                                  data: JSON.stringify({"uris":topTracks}),
+                                  headers: {
+                                    'Authorization': 'Bearer ' + access_token,
+                                    'Content-Type': 'application/json'
+                                  },
+                                  success: function(response) {
+                                    console.log(response);
+                                  }
+                                });
+                              }
+                            });
+                          }
+                          $.ajax({
+                            url: 'https://api.spotify.com/v1/recommendations',
+                            async: false,
+                            headers: {
+                                'Authorization': 'Bearer ' + access_token
+                            },
+                            data: {
+                                seed_artists: recArtists.toString()
+                            },
+                            success: function(response) {
+                              console.log(response);
+                              var tids = [response.tracks[0].uri]
+                              for (let i = 1; i < numTracks; i++) {
+                                tids.push(response.tracks[i].uri);
+                              }
+                              $.ajax({
+                                url: "https://api.spotify.com/v1/playlists/" + newID + "/tracks",
+                                type: "POST",
+                                data: JSON.stringify({"uris":tids}),
+                                headers: {
+                                  'Authorization': 'Bearer ' + access_token,
+                                  'Content-Type': 'application/json'
+                                },
+                                success: function(response) {
+                                  console.log(response);
+                                }
+                              });
+                            }
+                          });
+                        }
+                    });
+                  }
+                });
+              }
+            });
+          }, false);
+
+
+          document.getElementById('obtain-new-token').addEventListener('click', function() {
+            $.ajax({
+              url: '/refresh_token',
+              data: {
+                'refresh_token': refresh_token
+              }
+            }).done(function(data) {
+              access_token = data.access_token;
+              oauthPlaceholder.innerHTML = oauthTemplate({
+                access_token: access_token,
+                refresh_token: refresh_token
+              });
+            });
+          }, false);
+        }
+      })();
+    </script>
+  </body>
+</html>
